@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Numerologia Pitagórica – Impressão estilo planilha</title>
+<style>
+  :root{
+    --bg:#0f1a3a; --card:#172753; --txt:#fff; --muted:#9db0ff;
+    --accent:#46e6a6; --danger:#ff8b8b; --black:#000;
+    --radius:12px;
+  }
+  body{
+    margin:0; padding:32px 16px; background:var(--bg); color:var(--txt);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+    display:flex; justify-content:center;
+  }
+  main{ max-width:1200px; width:100%; }
+  h1{ text-align:center; margin:0 0 24px; }
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.2);
+  }
+  label{ display:block; margin-bottom:6px; font-weight:600; }
+  input{
+    width:100%; padding:12px 14px; border-radius:10px; border:0;
+    font-size:1rem; box-sizing:border-box;
+  }
+  .row{ display:grid; gap:16px; grid-template-columns:1fr 200px; }
+  button{
+    margin-top:16px; width:100%; padding:14px 18px; border:0; border-radius:10px;
+    background:var(--accent); color:#00311d; font-weight:700; cursor:pointer;
+  }
+  .erro{ color:var(--danger); font-weight:600; margin-top:12px; }
+  .muted{ color:var(--muted); font-size:.9rem; margin-top:8px; }
+
+  /* --- Tabelas por nome --- */
+  .names-wrapper{
+    display:flex; gap:24px; flex-wrap:wrap; margin-top:24px;
+  }
+  .name-block{
+    min-width:220px;
+  }
+  .name-title{
+    text-align:center; font-weight:700; letter-spacing:.08em; margin-bottom:6px;
+  }
+  table{
+    border-collapse:collapse; width:100%; margin-bottom:8px;
+    table-layout:fixed;
+  }
+  th, td{
+    border:1px solid rgba(255,255,255,.2);
+    text-align:center; padding:6px 4px; word-break:break-word;
+  }
+  th{
+    background:rgba(255,255,255,.08);
+    font-weight:700;
+  }
+  .bottom-total{
+    background:#000; color:#fff; font-weight:800; font-size:1.1rem;
+  }
+  .master{
+    color:var(--accent); font-weight:700;
+  }
+  .resultado{
+    margin-top:32px;
+  }
+  .secao{
+    margin-top:24px; padding:18px; border:1px solid rgba(255,255,255,.06);
+    border-radius:10px; background:rgba(255,255,255,.02);
+  }
+  details summary{
+    cursor:pointer; font-weight:600; margin-bottom:6px;
+  }
+  .grid-map{
+    display:grid; grid-template-columns: repeat(9,1fr);
+    gap:6px; margin-top:12px; text-align:center; font-size:.9rem;
+  }
+  .grid-map div{
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:6px; padding:6px 4px;
+  }
+  @media (max-width:720px){
+    .row{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Numerologia Pitagórica – passo a passo (estilo planilha)</h1>
+
+  <section class="card">
+    <div class="row">
+      <div>
+        <label for="nome">Nome completo</label>
+        <input id="nome" type="text" placeholder="Ex.: Guy Albert Lombardo" autocomplete="off" />
+      </div>
+
+      <div>
+        <label for="data">Data de nascimento</label>
+        <input id="data" type="date" />
+      </div>
+    </div>
+
+    <button id="btn">Calcular</button>
+
+    <p class="muted">
+      A=1, B=2, …, I=9; J=1, K=2, …, R=9; S=1, T=2, …, Z=8 (tabela pitagórica).
+      <strong>Números mestres (11, 22, 33) são preservados e destacados.</strong>
+    </p>
+
+    <details>
+      <summary>Ver a tabela completa (letra ⟶ número)</summary>
+      <div class="grid-map" id="gridMap"></div>
+    </details>
+
+    <div id="namesArea" class="names-wrapper"></div>
+
+    <div id="resultado" class="resultado"></div>
+  </section>
+</main>
+
+<script>
+/* ====== Mapeamento Pitagórico ====== */
+const MAP = {
+  1: ['A','J','S'], 2: ['B','K','T'], 3: ['C','L','U'],
+  4: ['D','M','V'], 5: ['E','N','W'], 6: ['F','O','X'],
+  7: ['G','P','Y'], 8: ['H','Q','Z'], 9: ['I','R']
+};
+const LETTER_TO_NUMBER = Object.entries(MAP).reduce((acc,[num,letters])=>{
+  letters.forEach(l=>acc[l]=Number(num));
+  return acc;
+}, {});
+const MASTERS = [11,22,33];
+
+/* Monta a mini tabela visual */
+(function buildGrid(){
+  const grid = document.getElementById('gridMap');
+  for (let n=1;n<=9;n++){
+    const top=document.createElement('div');
+    top.innerHTML = `<strong>${n}</strong>`;
+    grid.appendChild(top);
+  }
+  for (let row=0; row<3; row++){
+    for (let n=1;n<=9;n++){
+      const letters = MAP[n][row] || '';
+      const cell = document.createElement('div');
+      cell.textContent = letters;
+      grid.appendChild(cell);
+    }
+  }
+})();
+
+/* ====== Helpers ====== */
+const sanitize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ç/gi,'c');
+const onlyLetters = s => s.toUpperCase().replace(/[^A-Z]/g,'');
+
+function toSingleDigit(n){
+  if (MASTERS.includes(n)) return n;
+  while (n>9){
+    n = String(n).split('').reduce((a,b)=>a+Number(b),0);
+  }
+  return n;
+}
+
+/**
+ * Gera as linhas no estilo da sua planilha:
+ * 1) primeira linha: valores das letras
+ * 2) próxima(s) linha(s): somas por pares (1º+2º, 3º+4º, …). Se sobrar um, ele “desce”.
+ * 3) se alguma soma for > 9 e não for mestre, insere uma linha intermediária reduzindo cada uma.
+ * 4) repete 2) até ter um número final.
+ */
+function buildTriangle(values){
+  const rows = [];
+  rows.push(values.slice()); // primeira linha = valores das letras
+
+  let current = values.slice();
+
+  while (current.length > 1){
+    const next = [];
+    for (let i=0; i<current.length; i+=2){
+      if (i+1 < current.length){
+        let sum = current[i] + current[i+1];
+        // mantém 11/22/33; se não for mestre e >9, mantém como está por enquanto
+        next.push(sum);
+      } else {
+        // impar: último desce direto
+        next.push(current[i]);
+      }
+    }
+    rows.push(next.slice());
+
+    // Verifica se há necessidade de uma linha apenas de reduções
+    const needReduce = next.some(n => n>9 && !MASTERS.includes(n));
+    if (needReduce){
+      const reduced = next.map(n => MASTERS.includes(n) ? n : toSingleDigit(n));
+      rows.push(reduced);
+      current = reduced;
+    } else {
+      current = next;
+    }
+  }
+
+  // Número final (último valor do último array)
+  const finalNumber = current[0];
+  return { rows, finalNumber };
+}
+
+function nameToValues(word){
+  const clean = onlyLetters(sanitize(word));
+  const arr = [];
+  for (const ch of clean){
+    const v = LETTER_TO_NUMBER[ch] || 0;
+    if (v>0) arr.push(v);
+  }
+  return arr;
+}
+
+/* Data de nascimento (mantendo o que já funcionava) */
+function reduceWithSteps(initial){
+  const steps = [];
+  let value = initial;
+  while (value > 9 && !MASTERS.includes(value)){
+    const digits = String(value).split('').map(Number);
+    const newSum = digits.reduce((a,b)=>a+b,0);
+    steps.push({ from:value, digits, to:newSum });
+    value = newSum;
+  }
+  return { final:value, steps, isMaster: MASTERS.includes(value) };
+}
+function calcDateNumber(dateStr){
+  const digits = (dateStr||'').replace(/\D/g,'').split('').map(Number);
+  const total = digits.reduce((a,b)=>a+b,0);
+  return { digits, total, reduction: reduceWithSteps(total) };
+}
+
+/* ====== Render ====== */
+function render(){
+  const nome = document.getElementById('nome').value.trim();
+  const data = document.getElementById('data').value;
+  const namesArea = document.getElementById('namesArea');
+  const out = document.getElementById('resultado');
+  namesArea.innerHTML = '';
+  out.innerHTML = '';
+
+  if (!nome){
+    out.innerHTML = `<p class="erro">Digite o nome completo.</p>`;
+    return;
+  }
+  if (!data){
+    out.innerHTML = `<p class="erro">Digite a data de nascimento.</p>`;
+    return;
+  }
+
+  /* ===== Nome (planilha por palavra) ===== */
+  const words = nome
+    .split(/\s+/)
+    .map(w=>w.trim())
+    .filter(Boolean);
+
+  words.forEach(word=>{
+    const values = nameToValues(word);
+    const { rows, finalNumber } = buildTriangle(values);
+
+    // monta a tabela
+    const block = document.createElement('div');
+    block.className = 'name-block';
+
+    const title = document.createElement('div');
+    title.className = 'name-title';
+    title.textContent = word.toUpperCase();
+    block.appendChild(title);
+
+    const table = document.createElement('table');
+
+    // Linha 0: cabeçalho com letras
+    const trLetters = document.createElement('tr');
+    for (const ch of onlyLetters(sanitize(word))){
+      const th = document.createElement('th');
+      th.textContent = ch;
+      trLetters.appendChild(th);
+    }
+    table.appendChild(trLetters);
+
+    // Demais linhas (rows)
+    rows.forEach((line, idx)=>{
+      const tr = document.createElement('tr');
+      // preenche c/ células vazias para bater o nº de colunas da 1ª linha
+      const totalCols = trLetters.children.length;
+      for (let i=0; i<totalCols; i++){
+        const td = document.createElement('td');
+        const val = line[i];
+        if (val !== undefined){
+          td.textContent = val;
+          if (MASTERS.includes(val)) td.classList.add('master');
+        }
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
+    });
+
+    // linha final preta
+    const trFinal = document.createElement('tr');
+    const tdFinal = document.createElement('td');
+    tdFinal.colSpan = trLetters.children.length;
+    tdFinal.className = 'bottom-total' + (MASTERS.includes(finalNumber) ? ' master' : '');
+    tdFinal.textContent = finalNumber;
+    trFinal.appendChild(tdFinal);
+    table.appendChild(trFinal);
+
+    block.appendChild(table);
+    namesArea.appendChild(block);
+  });
+
+  /* ===== Data de nascimento (mantendo fatoração textual) ===== */
+  const birth = calcDateNumber(data);
+  const dateDigitsStr = birth.digits.join(' + ');
+  const dateReductionStr = birth.reduction.steps
+    .map(st=>`${st.from} → ${st.digits.join(' + ')} = ${st.to}`)
+    .join('<br>');
+
+  out.innerHTML = `
+    <div class="secao">
+      <h2>Data de nascimento</h2>
+      <p><strong>Dígitos da data:</strong><br>
+        <code>${dateDigitsStr}</code> = <strong>${birth.total}</strong>
+      </p>
+      ${birth.reduction.steps.length ? `
+      <p><strong>Reduções:</strong><br>
+        ${dateReductionStr}
+      </p>` : ''}
+      <p><strong>Número final da data:</strong> 
+        <span class="${birth.reduction.isMaster?'master':''}">
+          ${birth.reduction.final}${birth.reduction.isMaster?' (número mestre)':''}
+        </span>
+      </p>
+    </div>
+  `;
+}
+
+document.getElementById('btn').addEventListener('click', render);
+['nome','data'].forEach(id=>{
+  document.getElementById(id).addEventListener('keyup', e=>{
+    if (e.key==='Enter') render();
+  });
+});
+</script>
+</body>
+</html>
