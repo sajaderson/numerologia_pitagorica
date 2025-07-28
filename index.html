@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Numerologia Pitagórica – Impressão estilo planilha</title>
+<title>Calculadora Numerológica Pitagórica</title>
 <style>
   :root{
     --bg:#0f1a3a; --card:#172753; --txt:#fff; --muted:#9db0ff;
@@ -35,8 +35,15 @@
   .muted{ color:var(--muted); font-size:.9rem; margin-top:8px; }
 
   /* --- Tabelas por nome --- */
+  /* .names-wrapper agora só para sessões não-CARÁTER (mantém grid/wrap) */
   .names-wrapper{
     display:flex; gap:24px; flex-wrap:wrap; margin-top:24px;
+  }
+  /* Nova classe exclusiva para CARÁTER, com layout flex puro */
+  .carater-names-wrapper{
+    display:flex; gap:24px; margin-top:24px;
+    flex-direction: row;
+    align-items: flex-start;
   }
   .name-block{
     min-width:220px;
@@ -63,7 +70,10 @@
     font-weight:700;
   }
   .bottom-total{
-    background:#000; color:#fff; font-weight:800; font-size:1.1rem;
+    background:#000 !important;
+    color:#fff !important;
+    font-weight:800;
+    font-size:1.1rem;
   }
   .master{
     color:var(--accent); font-weight:700;
@@ -86,14 +96,23 @@
     border:1px solid rgba(255,255,255,.08);
     border-radius:6px; padding:6px 4px;
   }
-  @media (max-width:720px){
+  @media (max-width:700px){
     .row{ grid-template-columns:1fr; }
+    .carater-names-wrapper{
+      flex-direction: column !important;
+      gap: 16px !important;
+      align-items: stretch !important;
+    }
+    .name-block{
+      min-width: 0 !important;
+      width: 100% !important;
+    }
   }
 </style>
 </head>
 <body>
 <main>
-  <h1>Numerologia Pitagórica</h1>
+  <h1>Calculadora Numerológica Pitagórica</h1>
 
   <section class="card">
     <div class="row">
@@ -349,42 +368,34 @@ function render(){
   const words = nome.split(/\s+/).map(w => w.trim()).filter(Boolean);
 
 
-  // Tabela do CARÁTER (todas as letras) - tabela única com colunas mescladas
+  // Tabela do CARÁTER (todas as letras) - responsiva: uma tabela por nome no mobile, tabela única no desktop
   function renderCaraterTable(words) {
-    // ...igual ao original...
+    const isMobile = window.innerWidth < 700;
     const letrasArr = words.map(w => onlyLetters(sanitize(w)).split(''));
     const valoresArr = letrasArr.map(arr => arr.map(l => LETTER_TO_NUMBER[l] || ''));
     const somas = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
     const reducoes = somas.map(n => toSingleDigit(n));
     const somaTotal = somas.reduce((a,b)=>a+b,0);
     const reducaoFinal = toSingleDigit(somaTotal);
-    let html = '<table style="margin:auto;">';
-    html += '<tr>';
-    words.forEach((w,idx) => {
-      letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
-      if (idx < words.length-1) html += `<th rowspan="4"></th>`;
-    });
-    html += '</tr>';
-    html += '<tr>';
-    valoresArr.forEach((arr,idx) => {
-      arr.forEach(v => html += `<td>${v}</td>`);
-    });
-    html += '</tr>';
-    html += '<tr>';
-    valoresArr.forEach((arr,idx) => {
-      html += `<td colspan="${arr.length}">${somas[idx]}</td>`;
-    });
-    html += '</tr>';
-    html += '<tr>';
-    valoresArr.forEach((arr,idx) => {
-      html += `<td colspan="${arr.length}">${reducoes[idx]}</td>`;
-    });
-    html += '</tr>';
-    const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
-    // Linha preta: sempre o dígito reduzido (nunca mestre)
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${toSingleDigit(somaReduzidos)}</td></tr>`;
-    html += '</table>';
+    // Usa classe exclusiva para CARÁTER
+    let html = '<div class="carater-names-wrapper">';
+    for (let i = 0; i < words.length; i++) {
+      html += '<div class="name-block">';
+      html += `<div class="name-title">${onlyLetters(sanitize(words[i]))}</div>`;
+      html += '<table>';
+      html += '<tr>';
+      letrasArr[i].forEach(l => html += `<th>${l}</th>`);
+      html += '</tr>';
+      html += '<tr>';
+      valoresArr[i].forEach(v => html += `<td>${v}</td>`);
+      html += '</tr>';
+      html += `<tr><td colspan="${letrasArr[i].length}">${somas[i]}</td></tr>`;
+      html += `<tr><td colspan="${letrasArr[i].length}">${reducoes[i]}</td></tr>`;
+      html += `<tr><td colspan="${letrasArr[i].length}" class="bottom-total">${toSingleDigit(reducoes[i])}</td></tr>`;
+      html += '</table>';
+      html += '</div>';
+    }
+    html += '</div>';
     return html;
   }
 
