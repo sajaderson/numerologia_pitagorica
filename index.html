@@ -52,6 +52,12 @@
     border:1px solid rgba(255,255,255,.2);
     text-align:center; padding:6px 4px; word-break:break-word;
   }
+  .linha-soma, .bottom-total {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: none !important;
+  }
   th{
     background:rgba(255,255,255,.08);
     font-weight:700;
@@ -87,7 +93,7 @@
 </head>
 <body>
 <main>
-  <h1>Numerologia Pitagórica – passo a passo (estilo planilha)</h1>
+  <h1>Numerologia Pitagórica</h1>
 
   <section class="card">
     <div class="row">
@@ -252,88 +258,314 @@ function render(){
     return;
   }
 
-  /* ===== Nome (planilha por palavra) ===== */
-  const words = nome
-    .split(/\s+/)
-    .map(w=>w.trim())
-    .filter(Boolean);
-
-  words.forEach(word=>{
-    const values = nameToValues(word);
-    const { rows, finalNumber } = buildTriangle(values);
-
-    // monta a tabela
-    const block = document.createElement('div');
-    block.className = 'name-block';
-
-    const title = document.createElement('div');
-    title.className = 'name-title';
-    title.textContent = word.toUpperCase();
-    block.appendChild(title);
-
-    const table = document.createElement('table');
-
-    // Linha 0: cabeçalho com letras
-    const trLetters = document.createElement('tr');
-    for (const ch of onlyLetters(sanitize(word))){
-      const th = document.createElement('th');
-      th.textContent = ch;
-      trLetters.appendChild(th);
-    }
-    table.appendChild(trLetters);
-
-    // Demais linhas (rows)
-    rows.forEach((line, idx)=>{
-      const tr = document.createElement('tr');
-      // preenche c/ células vazias para bater o nº de colunas da 1ª linha
-      const totalCols = trLetters.children.length;
-      for (let i=0; i<totalCols; i++){
-        const td = document.createElement('td');
-        const val = line[i];
-        if (val !== undefined){
-          td.textContent = val;
-          if (MASTERS.includes(val)) td.classList.add('master');
+  // Função para destacar vogais/consoantes
+  function highlightLetters(word, type) {
+    // Usa a mesma lógica da filterLetters para identificar vogais/consoantes (incluindo Y)
+    const arr = onlyLetters(sanitize(word)).split('');
+    return arr.map((l, i, a) => {
+      let isTarget = false;
+      if (l !== 'Y') {
+        isTarget = (type === 'vogal' ? 'AEIOU'.includes(l) : !'AEIOU'.includes(l));
+      } else {
+        // Regra do Y
+        if (i === 0) isTarget = (type === 'consoante');
+        else if (i === a.length - 1) isTarget = (type === 'vogal');
+        else {
+          const prev = a[i - 1];
+          const next = a[i + 1];
+          const isPrevCons = prev && !'AEIOUY'.includes(prev);
+          const isNextCons = next && !'AEIOUY'.includes(next);
+          isTarget = (isPrevCons && isNextCons) ? (type === 'vogal') : (type === 'consoante');
         }
-        tr.appendChild(td);
       }
-      table.appendChild(tr);
+      if (isTarget) {
+        return `<span style="text-decoration:underline;font-weight:700;">${l}</span>`;
+      } else {
+        return l;
+      }
+    }).join('');
+  }
+
+  // Função para montar bloco horizontal (linhas agrupadas)
+  function renderHorizontalBlock(words, type) {
+    // type: 'all', 'vogal', 'consoante'
+    let filtered = words.map(w => {
+      if (type === 'all') return onlyLetters(sanitize(w));
+      const VOGAIS = 'AEIOU';
+      return onlyLetters(sanitize(w)).split('').filter(l => type === 'vogal' ? VOGAIS.includes(l) : !VOGAIS.includes(l)).join('');
     });
+    let valuesArr = filtered.map(nameToValues);
+    let triangles = valuesArr.map(buildTriangle);
+    // Descobrir o maior número de linhas
+    let maxRows = Math.max(...triangles.map(t => t.rows.length));
+    // Montar HTML com tabelas lado a lado
+    let html = '<div class="names-wrapper" style="align-items:flex-start;">';
+    for (let i = 0; i < words.length; i++) {
+      let label = type==='all' ? onlyLetters(sanitize(words[i])) : highlightLetters(words[i], type);
+      html += '<div class="name-block">';
+      html += `<div class="name-title">${label}</div>`;
+      html += '<table>';
+      // Para cada linha de cálculo
+      for (let row = 0; row < maxRows; row++) {
+        html += '<tr>';
+        let vals = triangles[i].rows[row] || [];
+        for (let v = 0; v < vals.length; v++) {
+          html += `<td${MASTERS.includes(vals[v]) ? ' class="master"' : ''}>${vals[v] !== undefined ? vals[v] : ''}</td>`;
+        }
+        html += '</tr>';
+      }
+      // Linha preta final: sempre mostrar o dígito reduzido
+      const finalDigit = toSingleDigit(triangles[i].finalNumber);
+      html += `<tr><td colspan="${(triangles[i].rows[0]||[]).length}" class="bottom-total">${finalDigit}</td></tr>`;
+      html += '</table>';
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
 
-    // linha final preta
-    const trFinal = document.createElement('tr');
-    const tdFinal = document.createElement('td');
-    tdFinal.colSpan = trLetters.children.length;
-    tdFinal.className = 'bottom-total' + (MASTERS.includes(finalNumber) ? ' master' : '');
-    tdFinal.textContent = finalNumber;
-    trFinal.appendChild(tdFinal);
-    table.appendChild(trFinal);
+  // Função para extrair vogais/consoantes, considerando a regra do Y
+  function filterLetters(str, type) {
+    const VOGAIS = 'AEIOU';
+    const arr = onlyLetters(sanitize(str)).split('');
+    return arr.filter((l, i, a) => {
+      if (l !== 'Y') {
+        return type === 'vogal' ? VOGAIS.includes(l) : !VOGAIS.includes(l);
+      }
+      // Regra do Y
+      if (i === 0) return type === 'consoante'; // início: consoante
+      if (i === a.length - 1) return type === 'vogal'; // fim: vogal
+      // meio: vogal se está entre consoantes (ou seja, antes e depois não são vogais nem Y)
+      const prev = a[i - 1];
+      const next = a[i + 1];
+      const isPrevCons = prev && !'AEIOUY'.includes(prev);
+      const isNextCons = next && !'AEIOUY'.includes(next);
+      if (isPrevCons && isNextCons) return type === 'vogal';
+      return type === 'consoante';
+    }).join('');
+  }
 
-    block.appendChild(table);
-    namesArea.appendChild(block);
-  });
+  // Palavras do nome
+  const words = nome.split(/\s+/).map(w => w.trim()).filter(Boolean);
 
-  /* ===== Data de nascimento (mantendo fatoração textual) ===== */
+
+  // Tabela do CARÁTER (todas as letras) - tabela única com colunas mescladas
+  function renderCaraterTable(words) {
+    // ...igual ao original...
+    const letrasArr = words.map(w => onlyLetters(sanitize(w)).split(''));
+    const valoresArr = letrasArr.map(arr => arr.map(l => LETTER_TO_NUMBER[l] || ''));
+    const somas = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
+    const reducoes = somas.map(n => toSingleDigit(n));
+    const somaTotal = somas.reduce((a,b)=>a+b,0);
+    const reducaoFinal = toSingleDigit(somaTotal);
+    let html = '<table style="margin:auto;">';
+    html += '<tr>';
+    words.forEach((w,idx) => {
+      letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
+      if (idx < words.length-1) html += `<th rowspan="4"></th>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      arr.forEach(v => html += `<td>${v}</td>`);
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${somas[idx]}</td>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${reducoes[idx]}</td>`;
+    });
+    html += '</tr>';
+    const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
+    // Linha preta: sempre o dígito reduzido (nunca mestre)
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${toSingleDigit(somaReduzidos)}</td></tr>`;
+    html += '</table>';
+    return html;
+  }
+
+
+  // Tabela do DESEJO DE ALMA (apenas vogais, com regra do Y)
+  function renderAlmaTable(words) {
+    const letrasArr = words.map(w => filterLetters(w, 'vogal').split(''));
+    const valoresArr = letrasArr.map(arr => arr.map(l => LETTER_TO_NUMBER[l] || ''));
+    const somas = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
+    const reducoes = somas.map(n => toSingleDigit(n));
+    const somaTotal = somas.reduce((a,b)=>a+b,0);
+    const reducaoFinal = toSingleDigit(somaTotal);
+    let html = '<table style="margin:auto;">';
+    html += '<tr>';
+    words.forEach((w,idx) => {
+      letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
+      if (idx < words.length-1) html += `<th rowspan="4"></th>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      arr.forEach(v => html += `<td>${v}</td>`);
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${arr.length ? somas[idx] : ''}</td>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${arr.length ? reducoes[idx] : ''}</td>`;
+    });
+    html += '</tr>';
+    const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${toSingleDigit(somaReduzidos)}</td></tr>`;
+    html += '</table>';
+    return html;
+  }
+
+  // Tabela da PERSONALIDADE (apenas consoantes, com regra do Y)
+  function renderPersonalidadeTable(words) {
+    const letrasArr = words.map(w => filterLetters(w, 'consoante').split(''));
+    const valoresArr = letrasArr.map(arr => arr.map(l => LETTER_TO_NUMBER[l] || ''));
+    const somas = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
+    const reducoes = somas.map(n => toSingleDigit(n));
+    const somaTotal = somas.reduce((a,b)=>a+b,0);
+    const reducaoFinal = toSingleDigit(somaTotal);
+    let html = '<table style="margin:auto;">';
+    html += '<tr>';
+    words.forEach((w,idx) => {
+      letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
+      if (idx < words.length-1) html += `<th rowspan="4"></th>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      arr.forEach(v => html += `<td>${v}</td>`);
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${arr.length ? somas[idx] : ''}</td>`;
+    });
+    html += '</tr>';
+    html += '<tr>';
+    valoresArr.forEach((arr,idx) => {
+      html += `<td colspan="${arr.length}">${arr.length ? reducoes[idx] : ''}</td>`;
+    });
+    html += '</tr>';
+    const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
+    // Linha preta: sempre o dígito reduzido, mesmo se for mestre
+    let finalDigit = somaReduzidos;
+    while (finalDigit > 9) {
+      finalDigit = String(finalDigit).split('').reduce((a,b)=>a+Number(b),0);
+    }
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${finalDigit}</td></tr>`;
+    html += '</table>';
+    return html;
+  }
+
+
+
+  const blocoCarater = renderCaraterTable(words);
+  const blocoAlma = renderAlmaTable(words);
+  const blocoPers = renderPersonalidadeTable(words);
+
+  namesArea.innerHTML = `
+    <div class="secao">
+      <h2>CARÁTER <span style="font-size:1rem;font-weight:400;opacity:.8;">- Quem sou</span></h2>
+      <div style="overflow-x:auto;">${blocoCarater}</div>
+    </div>
+    <div class="secao">
+      <h2>DESEJO DA ALMA <span style="font-size:1rem;font-weight:400;opacity:.8;">- O que desejo viver</span></h2>
+      ${blocoAlma}
+    </div>
+    <div class="secao">
+      <h2>PERSONALIDADE <span style="font-size:1rem;font-weight:400;opacity:.8;">- Como me mostro</span></h2>
+      ${blocoPers}
+    </div>
+  `;
+
+  // ===== Data de nascimento (Caminho de Origem) =====
   const birth = calcDateNumber(data);
-  const dateDigitsStr = birth.digits.join(' + ');
-  const dateReductionStr = birth.reduction.steps
-    .map(st=>`${st.from} → ${st.digits.join(' + ')} = ${st.to}`)
-    .join('<br>');
+  // Tabela do CAMINHO DE ORIGEM (data de nascimento) no formato solicitado
+  function renderCaminhoOrigemTable(dataStr) {
+    const [ano, mes, dia] = dataStr.split('-');
+    if (!ano || !mes || !dia) return '';
+    const partes = [dia, mes, ano];
+
+    // Para cada parte, gera as etapas: soma dos dígitos, reduções intermediárias
+    function etapasParte(str) {
+      let etapas = [];
+      let atual = String(parseInt(str,10));
+      // primeira linha: soma dos dígitos
+      let soma = atual.split('').reduce((a,b)=>a+Number(b),0);
+      etapas.push(soma);
+      // reduções intermediárias
+      while (etapas[etapas.length-1] > 9 && !MASTERS.includes(etapas[etapas.length-1])) {
+        let prox = String(etapas[etapas.length-1]).split('').reduce((a,b)=>a+Number(b),0);
+        etapas.push(prox);
+      }
+      return etapas;
+    }
+    const etapas = partes.map(etapasParte);
+    // Descobre o máximo de linhas (soma todas as linhas intermediárias de todas as partes)
+    let maxRows = Math.max(...etapas.map(r => r.length));
+    // Para o caso de reduções extras (ex: ano com mais etapas), adiciona linhas extras para mostrar cada etapa
+    let linhas = [];
+    for (let i = 0; i < maxRows; i++) {
+      let linha = [];
+      for (let j = 0; j < 3; j++) {
+        // Se a etapa existe, mostra, senão repete o último valor
+        linha.push(etapas[j][i] !== undefined ? etapas[j][i] : etapas[j][etapas[j].length-1]);
+      }
+      linhas.push(linha);
+    }
+    // Soma dos valores de cada linha
+    let somas = linhas.map(l => l.reduce((a,b)=>a+Number(b||0),0));
+    // Reduções finais a partir da última soma
+    let reducoes = [];
+    let temp = somas[somas.length-1];
+    while (temp > 9 && !MASTERS.includes(temp)) {
+      temp = String(temp).split('').reduce((a,b)=>a+Number(b),0);
+      reducoes.push(temp);
+    }
+    // Monta HTML
+    let html = '<table style="margin:auto;">';
+    html += '<tr>';
+    html += `<th>${partes[0]}</th>`;
+    html += `<th rowspan="4"></th>`;
+    html += `<th>${partes[1]}</th>`;
+    html += `<th rowspan="4"></th>`;
+    html += `<th>${partes[2]}</th>`;
+    html += '</tr>';
+    // Linhas de reduções
+    for (let i=0; i<linhas.length; i++) {
+      html += '<tr>';
+      for (let j=0; j<3; j++) {
+        html += `<td>${linhas[i][j]}</td>`;
+      }
+      html += '</tr>';
+    }
+    // Soma mesclada (colspan=5) só se for maior que 9
+    if (somas[somas.length-1] > 9) {
+      html += `<tr><td colspan="5">${somas[somas.length-1]}</td></tr>`;
+    }
+    // Resultado final, sempre uma única linha, mesclada e com classe bottom-total
+    let resultadoFinal = reducoes.length > 0 ? reducoes[reducoes.length-1] : somas[somas.length-1];
+    html += `<tr><td colspan="5" class="bottom-total">${resultadoFinal}</td></tr>`;
+    html += '</table>';
+    return html;
+  }
+
 
   out.innerHTML = `
     <div class="secao">
-      <h2>Data de nascimento</h2>
-      <p><strong>Dígitos da data:</strong><br>
-        <code>${dateDigitsStr}</code> = <strong>${birth.total}</strong>
-      </p>
-      ${birth.reduction.steps.length ? `
-      <p><strong>Reduções:</strong><br>
-        ${dateReductionStr}
-      </p>` : ''}
-      <p><strong>Número final da data:</strong> 
-        <span class="${birth.reduction.isMaster?'master':''}">
-          ${birth.reduction.final}${birth.reduction.isMaster?' (número mestre)':''}
-        </span>
-      </p>
+      <h2>CAMINHO DE ORIGEM</h2>
+      <div style="overflow-x:auto;">${renderCaminhoOrigemTable(data)}</div>
     </div>
   `;
 }

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+        <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            border-collapse: collapse;
+            /* width: 100%; */
+            margin-bottom: 20px;
+        }
+        th, td {
+            min-width: 20px;
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        td.resultado {
+            background-color: black;
+            color: white;
+            font-weight: bold;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+        th:empty[rowspan] {
+    border: none;
+    background-color: transparent;
+}
+
+    </style>
+</head>
+<body>
+    <table>
+        <tr>
+    <th>J</th>
+    <th>A</th>
+    <th>D</th>
+    <th>E</th>
+    <th>R</th>
+    <th>S</th>
+    <th>O</th>
+    <th>N</th>
+
+    <th rowspan="4"></th> <!-- Aqui -->
+
+    <th>S</th>
+    <th>I</th>
+    <th>L</th>
+    <th>V</th>
+    <th>A</th>
+
+    <th rowspan="4"></th> <!-- E aqui -->
+
+    <th>A</th>
+    <th>R</th>
+    <th>A</th>
+    <th>U</th>
+    <th>J</th>
+    <th>O</th>
+</tr>
+<tr>
+    <td>1</td>
+    <td>1</td>
+    <td>4</td>
+    <td>5</td>
+    <td>9</td>
+    <td>1</td>
+    <td>6</td>
+    <td>5</td>
+
+    <!-- REMOVIDO o <td> vazio aqui -->
+
+    <td>1</td>
+    <td>9</td>
+    <td>3</td>
+    <td>4</td>
+    <td>1</td>
+
+    <!-- REMOVIDO o <td> vazio aqui -->
+
+    <td>1</td>
+    <td>9</td>
+    <td>1</td>
+    <td>3</td>
+    <td>1</td>
+    <td>6</td>
+</tr>
+<tr>
+    <td colspan="8">32</td>
+    <!-- REMOVIDO o <td> vazio aqui -->
+    <td colspan="5">18</td>
+    <!-- REMOVIDO o <td> vazio aqui -->
+    <td colspan="6">21</td>
+</tr>
+<tr>
+    <td colspan="8">5</td>
+    <!-- REMOVIDO o <td> vazio aqui -->
+    <td colspan="5">9</td>
+    <!-- REMOVIDO o <td> vazio aqui -->
+    <td colspan="6">3</td>
+</tr>
+
+        <tr>
+            <td colspan="21">17</td>
+        </tr>
+                <tr>
+            <td colspan="21" class="resultado">8</td>
+        </tr>
+    </table>
+</body>
+</html>
