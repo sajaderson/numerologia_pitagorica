@@ -482,12 +482,18 @@ function render(){
     });
 
     // Etapas finais (soma e reduções)
-    finalSteps.forEach(step => {
+    finalSteps.forEach((step, index) => {
+      // Só mostra a última etapa se ela for diferente da anterior
+      if (index === finalSteps.length - 1 && step[0] === finalNumber) return;
       html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="${isMasterNumber(step[0]) ? 'master' : ''}">${step.join(' -- ')}</td></tr>`;
     });
 
-    // Linha preta: resultado final
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${finalNumber}</td></tr>`;
+    // Linha preta: resultado final (reduzido mesmo se for mestre)
+    let displayNumber = finalNumber;
+    if (isMasterNumber(finalNumber)) {
+      displayNumber = String(finalNumber).split('').reduce((a,b)=>a+Number(b),0);
+    }
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${displayNumber}</td></tr>`;
     html += '</table>';
     return html;
   }
@@ -525,7 +531,12 @@ function render(){
     html += '</tr>';
     const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
     html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${toSingleDigit(somaReduzidos)}</td></tr>`;
+    // Reduz mesmo que seja número mestre
+    let finalNumber = somaReduzidos;
+    if (finalNumber > 9) {
+      finalNumber = String(finalNumber).split('').reduce((a,b)=>a+Number(b),0);
+    }
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${finalNumber}</td></tr>`;
     html += '</table>';
     return html;
   }
@@ -660,6 +671,10 @@ function render(){
     }
     // Resultado final, sempre uma única linha, mesclada e com classe bottom-total
     let resultadoFinal = reducoes.length > 0 ? reducoes[reducoes.length-1] : somas[somas.length-1];
+    // Reduz mesmo que seja número mestre
+    if (resultadoFinal > 9) {
+      resultadoFinal = String(resultadoFinal).split('').reduce((a,b)=>a+Number(b),0);
+    }
     html += `<tr><td colspan="5" class="bottom-total">${resultadoFinal}</td></tr>`;
     html += '</table>';
     return html;
