@@ -351,39 +351,143 @@ function render(){
 
   // Tabela do CARÁTER (todas as letras) - tabela única com colunas mescladas
   function renderCaraterTable(words) {
-    // ...igual ao original...
+    // --- USANDO A LÓGICA DO SCRIPT FORNECIDO ---
+    const letterValues = {
+      'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8, 'I': 9,
+      'J': 1, 'K': 2, 'L': 3, 'M': 4, 'N': 5, 'O': 6, 'P': 7, 'Q': 8, 'R': 9,
+      'S': 1, 'T': 2, 'U': 3, 'V': 4, 'W': 5, 'X': 6, 'Y': 7, 'Z': 8
+    };
+    function isMasterNumber(num) {
+      return num === 11 || num === 22 || num === 33;
+    }
+    // Prepara letras e valores
     const letrasArr = words.map(w => onlyLetters(sanitize(w)).split(''));
-    const valoresArr = letrasArr.map(arr => arr.map(l => LETTER_TO_NUMBER[l] || ''));
-    const somas = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
-    const reducoes = somas.map(n => toSingleDigit(n));
-    const somaTotal = somas.reduce((a,b)=>a+b,0);
-    const reducaoFinal = toSingleDigit(somaTotal);
+    const valoresArr = letrasArr.map(arr => arr.map(l => letterValues[l] || 0));
+
+    // Soma inicial de cada palavra
+    let wordSums = valoresArr.map(arr => arr.reduce((a,b)=>a+b,0));
+    let currentSums = [...wordSums];
+    let steps = [];
+
+    // Reduzir cada palavra individualmente, mantendo números mestres
+    while (currentSums.some(sum => sum > 9 && !isMasterNumber(sum))) {
+      let newSums = currentSums.map(sum => {
+        if (sum > 9 && !isMasterNumber(sum)) {
+          let reduced = 0;
+          let temp = sum;
+          while (temp > 0) {
+            reduced += temp % 10;
+            temp = Math.floor(temp / 10);
+          }
+          return reduced;
+        }
+        return sum;
+      });
+      if (JSON.stringify(newSums) !== JSON.stringify(currentSums)) {
+        steps.push([...newSums]);
+      }
+      currentSums = newSums;
+    }
+
+    // Soma final e reduções
+    let finalSums = [...currentSums];
+    let finalSteps = [];
+
+    // Processo especial para números mestres
+    if (finalSums.length > 1) {
+      if (isMasterNumber(finalSums[0])) {
+        if (finalSums.length > 2) {
+          // Soma o restante primeiro
+          let sumRest = finalSums.slice(1).reduce((a,b)=>a+b,0);
+          finalSums = [finalSums[0], sumRest];
+          finalSteps.push([...finalSums]);
+
+          // Reduz a segunda parte se necessário
+          while (finalSums[1] > 9) {
+            let reduced = 0, temp = finalSums[1];
+            while (temp > 0) {
+              reduced += temp % 10;
+              temp = Math.floor(temp / 10);
+            }
+            finalSums[1] = reduced;
+            finalSteps.push([...finalSums]);
+          }
+        }
+        // Soma final dos dois números
+        let totalSum = finalSums[0] + finalSums[1];
+        finalSteps.push([totalSum]);
+
+        // Reduz se necessário
+        while (totalSum > 9 && !isMasterNumber(totalSum)) {
+          let reduced = 0, temp = totalSum;
+          while (temp > 0) {
+            reduced += temp % 10;
+            temp = Math.floor(temp / 10);
+          }
+          totalSum = reduced;
+          finalSteps.push([totalSum]);
+        }
+        finalNumber = totalSum;
+      } else {
+        // Se não tem número mestre, soma tudo e reduz
+        let totalSum = finalSums.reduce((a,b)=>a+b,0);
+        finalSteps.push([totalSum]);
+
+        while (totalSum > 9 && !isMasterNumber(totalSum)) {
+          let reduced = 0, temp = totalSum;
+          while (temp > 0) {
+            reduced += temp % 10;
+            temp = Math.floor(temp / 10);
+          }
+          totalSum = reduced;
+          finalSteps.push([totalSum]);
+        }
+        finalNumber = totalSum;
+      }
+    } else {
+      finalNumber = finalSums[0];
+    }
+
+    // Monta a tabela
     let html = '<table style="margin:auto;">';
+    // 1ª linha: letras (th)
     html += '<tr>';
     words.forEach((w,idx) => {
       letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
-      if (idx < words.length-1) html += `<th rowspan="4"></th>`;
+      if (idx < words.length-1) html += `<th rowspan="${3+steps.length+finalSteps.length}"></th>`;
     });
     html += '</tr>';
+
+    // 2ª linha: valores das letras
     html += '<tr>';
     valoresArr.forEach((arr,idx) => {
       arr.forEach(v => html += `<td>${v}</td>`);
     });
     html += '</tr>';
+
+    // 3ª linha: soma inicial de cada parte
     html += '<tr>';
     valoresArr.forEach((arr,idx) => {
-      html += `<td colspan="${arr.length}">${somas[idx]}</td>`;
+      html += `<td colspan="${arr.length}" class="${isMasterNumber(wordSums[idx]) ? 'master' : ''}">${wordSums[idx]}</td>`;
     });
     html += '</tr>';
-    html += '<tr>';
-    valoresArr.forEach((arr,idx) => {
-      html += `<td colspan="${arr.length}">${reducoes[idx]}</td>`;
+
+    // Reduções intermediárias por palavra
+    steps.forEach(step => {
+      html += '<tr>';
+      step.forEach((val,idx) => {
+        html += `<td colspan="${valoresArr[idx].length}" class="${isMasterNumber(val) ? 'master' : ''}">${val}</td>`;
+      });
+      html += '</tr>';
     });
-    html += '</tr>';
-    const somaReduzidos = reducoes.reduce((a,b)=>a+b,0);
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}">${somaReduzidos}</td></tr>`;
-    // Linha preta: sempre o dígito reduzido (nunca mestre)
-    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${toSingleDigit(somaReduzidos)}</td></tr>`;
+
+    // Etapas finais (soma e reduções)
+    finalSteps.forEach(step => {
+      html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="${isMasterNumber(step[0]) ? 'master' : ''}">${step.join(' -- ')}</td></tr>`;
+    });
+
+    // Linha preta: resultado final
+    html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="bottom-total">${finalNumber}</td></tr>`;
     html += '</table>';
     return html;
   }
