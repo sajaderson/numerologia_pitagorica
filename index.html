@@ -450,11 +450,18 @@ function render(){
 
     // Monta a tabela
     let html = '<table style="margin:auto;">';
+    // Calcula o rowspan apropriado para cada separador
+    let rowspans = [];
+    for (let i = 0; i < words.length-1; i++) {
+      // O rowspan deve ir até antes da linha de soma total (4 linhas)
+      rowspans.push(4);
+    }
+
     // 1ª linha: letras (th)
     html += '<tr>';
     words.forEach((w,idx) => {
       letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
-      if (idx < words.length-1) html += `<th rowspan="${3+steps.length+finalSteps.length}"></th>`;
+      if (idx < words.length-1) html += `<th rowspan="${rowspans[idx]}"></th>`;
     });
     html += '</tr>';
 
@@ -481,11 +488,67 @@ function render(){
       html += '</tr>';
     });
 
+    // Mantém registro de onde cada número começa na linha e calcula totais
+    let numberPositions = [];
+    let currentPos = 0;
+    let totalLetters = 0; // Total de letras (sem separadores)
+    
+    valoresArr.forEach((arr, idx) => {
+      numberPositions.push({
+        start: currentPos,
+        length: arr.length
+      });
+      totalLetters += arr.length;
+      currentPos += arr.length + (idx < words.length-1 ? 1 : 0);
+    });
+
     // Etapas finais (soma e reduções)
+    let totalColumns = totalLetters + (words.length-1); // Total com separadores
+    const totalColsWithoutSeparators = valoresArr.reduce((a,arr)=>a+arr.length,0);
+    let hadMasterReduction = false;
+    let lastStep = null;
+
     finalSteps.forEach((step, index) => {
-      // Só mostra a última etapa se ela for diferente da anterior
       if (index === finalSteps.length - 1 && step[0] === finalNumber) return;
-      html += `<tr><td colspan="${valoresArr.reduce((a,arr)=>a+arr.length,0)+(words.length-1)}" class="${isMasterNumber(step[0]) ? 'master' : ''}">${step.join(' -- ')}</td></tr>`;
+      html += '<tr>';
+
+      if (hadMasterReduction) {
+        // Se já houve redução de número mestre, mescla tudo
+        html += `<td colspan="${totalColumns}">${step[0]}</td>`;
+      } else if (step.length === 2 && isMasterNumber(step[0])) {
+        // Número mestre na primeira coluna e resto na segunda
+        html += `<td colspan="${valoresArr[0].length}" class="master">${step[0]}</td>`;
+        html += `<td colspan="${totalColumns - valoresArr[0].length - 1}">${step[1]}</td>`;
+      } else if (step.length === 1 && !lastStep) {
+        // Soma total sem redução anterior
+        html += `<td colspan="${totalColumns}">${step[0]}</td>`;
+      } else {
+        // Se o número mestre foi reduzido neste passo
+        if (lastStep && isMasterNumber(lastStep[0]) && !isMasterNumber(step[0])) {
+          hadMasterReduction = true;
+        }
+        lastStep = step;
+
+        if (!hadMasterReduction) {
+          let usedColumns = 0;
+          step.forEach((num, idx) => {
+            if (idx < valoresArr.length) {
+              const isLast = idx === step.length - 1;
+              const colspan = isLast ? 
+                totalColumns - usedColumns - (step.length - idx - 1) :
+                valoresArr[idx].length;
+              html += `<td colspan="${colspan}" class="${isMasterNumber(num) ? 'master' : ''}">${num}</td>`;
+              if (idx < valoresArr.length - 1) {
+                html += '<td></td>';
+                usedColumns += colspan + 1;
+              }
+            }
+          });
+        } else {
+          html += `<td colspan="${totalColumns}">${step[0]}</td>`;
+        }
+      }
+      html += '</tr>';
     });
 
     // Linha preta: resultado final (reduzido mesmo se for mestre)
@@ -511,6 +574,7 @@ function render(){
     html += '<tr>';
     words.forEach((w,idx) => {
       letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
+      // O separador termina antes da linha de soma total (4 linhas no total)
       if (idx < words.length-1) html += `<th rowspan="4"></th>`;
     });
     html += '</tr>';
@@ -553,6 +617,7 @@ function render(){
     html += '<tr>';
     words.forEach((w,idx) => {
       letrasArr[idx].forEach(l => html += `<th>${l}</th>`);
+      // O separador termina antes da linha de soma total (4 linhas no total)
       if (idx < words.length-1) html += `<th rowspan="4"></th>`;
     });
     html += '</tr>';
